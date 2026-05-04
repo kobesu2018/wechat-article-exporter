@@ -24,3 +24,21 @@ export async function updateResourceCache(resource: ResourceAsset): Promise<bool
 export async function getResourceCache(url: string): Promise<ResourceAsset | undefined> {
   return db.resource.get(url);
 }
+
+/**
+ * 清理所有图片 Blob 数据，释放存储空间
+ */
+export async function clearResourceBlobs(): Promise<number> {
+  return db.transaction('rw', 'resource', async () => {
+    const count = await db.resource.count();
+    await db.resource.clear();
+    return count;
+  });
+}
+
+/**
+ * 获取图片缓存条目数量
+ */
+export async function getResourceCount(): Promise<number> {
+  return db.resource.count();
+}

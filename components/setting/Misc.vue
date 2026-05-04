@@ -100,6 +100,24 @@
         </div>
       </div>
     </div>
+    <div class="border border-slate-200 p-3 rounded-md mt-5 flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium">清理图片缓存</p>
+        <p class="text-xs text-gray-500 mt-0.5">
+          删除本地数据库中存储的图片 Blob 数据，释放存储空间。
+          <template v-if="resourceCount !== null">当前共 <span class="font-medium text-gray-700">{{ resourceCount }}</span> 条图片缓存。</template>
+        </p>
+      </div>
+      <UButton
+        color="red"
+        variant="soft"
+        :loading="clearing"
+        :disabled="clearing || resourceCount === 0"
+        @click="handleClearResourceBlobs"
+      >
+        清理图片缓存
+      </UButton>
+    </div>
     <div class="border border-slate-200 p-3 rounded-md mt-5">
       <p class="flex justify-between items-center mb-3">
         <span class="text-xl font-medium">
@@ -132,12 +150,32 @@
 <script setup lang="ts">
 import dayjs from 'dayjs';
 import type { Preferences } from '~/types/preferences';
+import { clearResourceBlobs, getResourceCount } from '~/store/v2/resource';
 
 const { getActualDateRange, getSelectOptions } = useSyncDeadline();
-
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
-
 const DURATION_OPTIONS = getSelectOptions();
+
+const toast = useToast();
+const clearing = ref(false);
+const resourceCount = ref<number | null>(null);
+
+onMounted(async () => {
+  resourceCount.value = await getResourceCount();
+});
+
+async function handleClearResourceBlobs() {
+  clearing.value = true;
+  try {
+    const count = await clearResourceBlobs();
+    resourceCount.value = 0;
+    toast.add({ title: `已清理 ${count} 条图片缓存`, color: 'green', timeout: 3000 });
+  } catch (e) {
+    toast.add({ title: '清理失败', description: String(e), color: 'red', timeout: 4000 });
+  } finally {
+    clearing.value = false;
+  }
+}
 
 function formatDate() {
   return dayjs.unix(preferences.value.syncDatePoint).format('YYYY-MM-DD');
