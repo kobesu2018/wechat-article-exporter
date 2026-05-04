@@ -79,13 +79,14 @@ const logoutBtnLoading = ref(false);
 
 async function logout() {
   logoutBtnLoading.value = true;
-  const { statusCode, statusText } = await request<LogoutResponse>('/api/web/mp/logout');
-  if (statusCode === 200) {
+  try {
+    await request<LogoutResponse>('/api/web/mp/logout');
+  } catch (e) {
+    console.warn('退出登录接口异常，仍清除本地登录状态', e);
+  } finally {
     loginAccount.value = null;
-  } else {
-    alert(statusText);
+    logoutBtnLoading.value = false;
   }
-  logoutBtnLoading.value = false;
 }
 
 let timer: number;

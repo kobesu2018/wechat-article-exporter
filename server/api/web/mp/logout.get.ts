@@ -23,11 +23,12 @@ export default defineEventHandler(async event => {
     },
   });
 
-  // 登出后清理内存中的 cookie 缓存
+  // 登出后清理内存中的 cookie 缓存，并让浏览器的 auth-key cookie 过期
   const authKey = getRequestHeader(event, 'X-Auth-Key') || parseCookies(event)['auth-key'];
   if (authKey) {
     cookieStore.removeCookie(authKey);
   }
+  deleteCookie(event, 'auth-key', { path: '/', secure: true, httpOnly: true });
 
   return {
     statusCode: response.status,
