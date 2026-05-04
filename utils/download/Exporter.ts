@@ -416,7 +416,11 @@ export class Exporter extends BaseDownloader {
 
       const content = await this.getRenderedHTML(url);
       if (!content) return;
-      const markdown = turndownService.turndown(content);
+
+      const doc = new DOMParser().parseFromString(content, 'text/html');
+      doc.querySelectorAll('style, script, .__bottom-bar__').forEach(el => el.remove());
+      const bodyContent = doc.querySelector('.__page_content__') || doc.body;
+      const markdown = turndownService.turndown(bodyContent.innerHTML);
 
       const blob = new Blob([markdown], { type: 'text/markdown' });
       await this.writeFile(filename + '.md', blob);

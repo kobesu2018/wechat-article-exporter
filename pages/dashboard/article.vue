@@ -79,6 +79,11 @@ const columnDefs = ref<ColDef[]>([
     filter: 'agTextColumnFilter',
     tooltipField: 'title',
     minWidth: 200,
+    cellRenderer: (params: ICellRendererParams) => {
+      const link = params.data?.link;
+      if (!link) return params.value ?? '';
+      return `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${params.value ?? ''}</a>`;
+    },
   },
   {
     headerName: '封面',
