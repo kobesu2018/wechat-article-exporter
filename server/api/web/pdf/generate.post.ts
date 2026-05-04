@@ -16,7 +16,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     await page.setViewport({ width: 794, height: 1123 });
-    await page.setContent(html, { waitUntil: 'load', timeout: 60_000 });
+    await page.setExtraHTTPHeaders({ Referer: 'https://mp.weixin.qq.com' });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60_000 });
 
     const contentHeight = await page.evaluate(
       () => Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight),

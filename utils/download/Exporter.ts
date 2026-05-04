@@ -444,8 +444,8 @@ export class Exporter extends BaseDownloader {
 
   /**
    * 导出 PDF：调用服务端 Puppeteer API 静默生成
-   * 复用 normalizeHtml 保留原始微信排版，资源以 data URL 内嵌，
-   * 逐篇文章 POST HTML 到服务端，接收 PDF Blob 后写入文件系统。
+   * 使用 getRenderedHTML 保留原始图片 URL，避免 base64 内嵌导致请求 payload 过大。
+   * 服务端 Puppeteer 直接加载微信 CDN 图片。
    */
   private async exportPdfFiles() {
     const total = this.urls.length;
@@ -454,48 +454,25 @@ export class Exporter extends BaseDownloader {
     await this.processFileExportQueue(
       this.urls,
       async (url) => {
-        const cached = await getHtmlCache(url);
-        if (!cached) {
-          console.warn(`文章(url: ${url} )的 html 还未下载，不能导出`);
-          return;
-        }
-
         const filename = await this.exportDirName(url);
-        console.log(`开始导出 PDF: ${cached.title}，文件名: ${filename}`);
+        console.log(`开始导出 PDF: ${filename}`);
 
-        const html = await cached.file.text();
-        const resourceMap = await getResourceMapCache(url);
-        const urlmap = new Map<string, string>();
-        if (resourceMap) {
-          for (const resourceUrl of resourceMap.resources) {
-            const resource = await getResourceCache(resourceUrl);
-            if (resource) {
-              urlmap.set(resourceUrl, await this.blobToDataUrl(resource.file));
-            }
-          }
-        }
-
-        let finalHtml = await this.normalizeHtml(cached, html, urlmap);
-
-        const doc = new DOMParser().parseFromString(finalHtml, 'text/html');
-        const jsContentText = doc.querySelector('#js_content')?.textContent?.replace(/[\s\u00A0]+/g, '') || '';
-        if (!jsContentText) {
-          const renderedHTML = await this.getRenderedHTML(url, true);
-          if (renderedHTML) {
-            finalHtml = renderedHTML;
-          }
+        const finalHtml = await this.getRenderedHTML(url, true);
+        if (!finalHtml) {
+          console.warn(`文章(url: ${url})无法获取渲染 HTML，跳过 PDF 导出`);
+          return;
         }
 
         const pdfStyleTag = `<style>
   html, body { background: white !important; background-color: white !important; }
   p { margin-block: 0.3em !important; }
 </style>`;
-        finalHtml = finalHtml.replace('</head>', `${pdfStyleTag}\n</head>`);
+        const htmlWithStyle = finalHtml.replace('</head>', `${pdfStyleTag}\n</head>`);
 
         const response = await fetch('/api/web/pdf/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          body: finalHtml,
+          body: htmlWithStyle,
         });
 
         if (!response.ok) {
