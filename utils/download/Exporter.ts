@@ -443,9 +443,8 @@ export class Exporter extends BaseDownloader {
   }
 
   /**
-   * 导出 PDF：调用服务端 Puppeteer API 静默生成
-   * 使用 getRenderedHTML 保留原始图片 URL，避免 base64 内嵌导致请求 payload 过大。
-   * 服务端 Puppeteer 直接加载微信 CDN 图片。
+   * 导出 PDF：在新窗口渲染 HTML 后调用浏览器原生打印，由用户保存为 PDF。
+   * 无服务端依赖，任何部署环境均可使用。
    */
   private async exportPdfFiles() {
     const total = this.urls.length;
@@ -454,9 +453,6 @@ export class Exporter extends BaseDownloader {
     await this.processFileExportQueue(
       this.urls,
       async (url) => {
-        const filename = await this.exportDirName(url);
-        console.log(`开始导出 PDF: ${filename}`);
-
         const finalHtml = await this.getRenderedHTML(url, true);
         if (!finalHtml) {
           console.warn(`文章(url: ${url})无法获取渲染 HTML，跳过 PDF 导出`);
@@ -466,23 +462,28 @@ export class Exporter extends BaseDownloader {
         const pdfStyleTag = `<style>
   html, body { background: white !important; background-color: white !important; }
   p { margin-block: 0.3em !important; }
+  @media print { body { margin: 0; } }
 </style>`;
         const htmlWithStyle = finalHtml.replace('</head>', `${pdfStyleTag}\n</head>`);
 
-        const response = await fetch('/api/web/pdf/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          body: htmlWithStyle,
+        await new Promise<void>((resolve) => {
+          const win = window.open('', '_blank');
+          if (!win) {
+            console.warn(`无法打开新窗口（url: ${url}），请在浏览器设置中允许弹出窗口`);
+            resolve();
+            return;
+          }
+          win.onafterprint = () => {
+            win.close();
+            resolve();
+          };
+          win.document.open();
+          win.document.write(htmlWithStyle);
+          win.document.close();
+          win.onload = () => win.print();
         });
-
-        if (!response.ok) {
-          throw new Error(`PDF 生成失败: ${response.status} ${response.statusText}`);
-        }
-
-        const pdfBlob = await response.blob();
-        await this.writeFile(filename + '.pdf', pdfBlob);
       },
-      { concurrency: 2, progressEvent: 'export:write:progress' },
+      { concurrency: 1, progressEvent: 'export:write:progress' },
     );
     await sleep(100);
   }
