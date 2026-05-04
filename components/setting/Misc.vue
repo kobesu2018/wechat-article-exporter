@@ -100,23 +100,31 @@
         </div>
       </div>
     </div>
-    <div class="border border-slate-200 p-3 rounded-md mt-5 flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium">清理图片缓存</p>
-        <p class="text-xs text-gray-500 mt-0.5">
-          删除本地数据库中存储的图片 Blob 数据，释放存储空间。
-          <template v-if="resourceCount !== null">当前共 <span class="font-medium text-gray-700">{{ resourceCount }}</span> 条图片缓存。</template>
-        </p>
+    <div class="border border-slate-200 rounded-md mt-5 divide-y divide-slate-200">
+      <div class="p-3 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium">清理图片缓存</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            删除存储的图片 Blob 数据（仅当"仅保存图片 URL"未勾选时会有数据）。
+            <template v-if="resourceCount !== null">当前共 <span class="font-medium text-gray-700">{{ resourceCount }}</span> 条。</template>
+          </p>
+        </div>
+        <UButton color="red" variant="soft" :loading="clearingResource" :disabled="clearingResource || resourceCount === 0" @click="handleClearResourceBlobs">
+          清理图片缓存
+        </UButton>
       </div>
-      <UButton
-        color="red"
-        variant="soft"
-        :loading="clearing"
-        :disabled="clearing || resourceCount === 0"
-        @click="handleClearResourceBlobs"
-      >
-        清理图片缓存
-      </UButton>
+      <div class="p-3 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium">清理文章 HTML 缓存</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            删除已下载的文章原始 HTML（占用空间最大，约 3~5 MB/篇）。清理后需重新下载才能导出。
+            <template v-if="htmlCount !== null">当前共 <span class="font-medium text-gray-700">{{ htmlCount }}</span> 篇。</template>
+          </p>
+        </div>
+        <UButton color="red" variant="soft" :loading="clearingHtml" :disabled="clearingHtml || htmlCount === 0" @click="handleClearHtmlCache">
+          清理 HTML 缓存
+        </UButton>
+      </div>
     </div>
     <div class="border border-slate-200 p-3 rounded-md mt-5">
       <p class="flex justify-between items-center mb-3">
@@ -151,21 +159,24 @@
 import dayjs from 'dayjs';
 import type { Preferences } from '~/types/preferences';
 import { clearResourceBlobs, getResourceCount } from '~/store/v2/resource';
+import { clearHtmlCache, getHtmlCount } from '~/store/v2/html';
 
 const { getActualDateRange, getSelectOptions } = useSyncDeadline();
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
 const DURATION_OPTIONS = getSelectOptions();
 
 const toast = useToast();
-const clearing = ref(false);
+const clearingResource = ref(false);
+const clearingHtml = ref(false);
 const resourceCount = ref<number | null>(null);
+const htmlCount = ref<number | null>(null);
 
 onMounted(async () => {
-  resourceCount.value = await getResourceCount();
+  [resourceCount.value, htmlCount.value] = await Promise.all([getResourceCount(), getHtmlCount()]);
 });
 
 async function handleClearResourceBlobs() {
-  clearing.value = true;
+  clearingResource.value = true;
   try {
     const count = await clearResourceBlobs();
     resourceCount.value = 0;
@@ -173,7 +184,20 @@ async function handleClearResourceBlobs() {
   } catch (e) {
     toast.add({ title: '清理失败', description: String(e), color: 'red', timeout: 4000 });
   } finally {
-    clearing.value = false;
+    clearingResource.value = false;
+  }
+}
+
+async function handleClearHtmlCache() {
+  clearingHtml.value = true;
+  try {
+    const count = await clearHtmlCache();
+    htmlCount.value = 0;
+    toast.add({ title: `已清理 ${count} 篇文章 HTML 缓存`, color: 'green', timeout: 3000 });
+  } catch (e) {
+    toast.add({ title: '清理失败', description: String(e), color: 'red', timeout: 4000 });
+  } finally {
+    clearingHtml.value = false;
   }
 }
 

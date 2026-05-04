@@ -26,3 +26,15 @@ export async function updateHtmlCache(html: HtmlAsset): Promise<boolean> {
 export async function getHtmlCache(url: string): Promise<HtmlAsset | undefined> {
   return db.html.get(url);
 }
+
+export async function getHtmlCount(): Promise<number> {
+  return db.html.count();
+}
+
+export async function clearHtmlCache(): Promise<number> {
+  return db.transaction('rw', 'html', async () => {
+    const count = await db.html.count();
+    await db.html.clear();
+    return count;
+  });
+}
