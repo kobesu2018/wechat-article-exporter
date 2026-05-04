@@ -565,6 +565,7 @@ function copyWechatLink() {
               { label: 'HTML', event: 'export-article-html' },
               { label: 'Txt', event: 'export-article-text' },
               { label: 'Markdown', event: 'export-article-markdown' },
+              { label: 'Markdown (按月合并)', event: 'export-article-markdown-merged' },
               { label: 'Word (内测中)', event: 'export-article-word' },
               { label: 'PDF (内测中)', event: 'export-article-pdf' },
             ]"
@@ -573,6 +574,7 @@ function copyWechatLink() {
             @export-article-html="exportFile('html', selectedArticleUrls, contentNotDownloadedCount)"
             @export-article-text="exportFile('text', selectedArticleUrls, contentNotDownloadedCount)"
             @export-article-markdown="exportFile('markdown', selectedArticleUrls, contentNotDownloadedCount)"
+            @export-article-markdown-merged="exportFile('markdown-merged', selectedArticleUrls, contentNotDownloadedCount)"
             @export-article-word="exportFile('word', selectedArticleUrls, contentNotDownloadedCount)"
             @export-article-pdf="exportFile('pdf', selectedArticleUrls, contentNotDownloadedCount)"
           >

@@ -200,6 +200,43 @@ export default () => {
     }
   }
 
+  // 导出 markdown（按月合并）
+  async function export2markdownMerged(urls: string[]) {
+    if (urls.length === 0) {
+      toast.warning('提示', '请先选择文章');
+      return;
+    }
+
+    const manager = new Exporter(urls);
+    manager.on('export:begin', () => {
+      phase.value = '资源解析中';
+      completed_count.value = 0;
+      total_count.value = 0;
+    });
+    manager.on('export:total', (total: number) => {
+      phase.value = '导出中';
+      completed_count.value = 0;
+      total_count.value = total;
+    });
+    manager.on('export:progress', (index: number) => {
+      completed_count.value = index;
+    });
+    manager.on('export:finish', (seconds: number) => {
+      console.debug('耗时:', formatElapsedTime(seconds));
+      toast.success('Markdown(按月合并) 导出完成', `本次导出耗时 ${formatElapsedTime(seconds)}`);
+    });
+
+    try {
+      loading.value = true;
+      await manager.startExport('markdown-merged');
+    } catch (error) {
+      console.error('导出任务失败:', error);
+      alert((error as Error).message);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   // 导出 word
   async function export2word(urls: string[]) {
     if (urls.length === 0) {
@@ -282,10 +319,10 @@ export default () => {
     }
   }
 
-  const needsContentFormats = new Set(['html', 'text', 'markdown', 'word', 'pdf']);
+  const needsContentFormats = new Set(['html', 'text', 'markdown', 'markdown-merged', 'word', 'pdf']);
 
   function exportFile(
-    type: 'excel' | 'json' | 'html' | 'text' | 'markdown' | 'word' | 'pdf',
+    type: 'excel' | 'json' | 'html' | 'text' | 'markdown' | 'markdown-merged' | 'word' | 'pdf',
     urls: string[],
     contentNotDownloadedCount?: number,
   ) {
@@ -305,6 +342,8 @@ export default () => {
         return export2txt(urls);
       case 'markdown':
         return export2markdown(urls);
+      case 'markdown-merged':
+        return export2markdownMerged(urls);
       case 'word':
         return export2word(urls);
       case 'pdf':

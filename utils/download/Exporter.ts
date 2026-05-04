@@ -18,7 +18,7 @@ import { type ExcelExportEntity, export2ExcelFile, export2JsonFile } from '~/uti
 import type { DownloadOptions } from './types';
 
 // 导出类型
-type ExportType = 'excel' | 'json' | 'html' | 'txt' | 'markdown' | 'word' | 'pdf';
+type ExportType = 'excel' | 'json' | 'html' | 'txt' | 'markdown' | 'markdown-merged' | 'word' | 'pdf';
 
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
 
@@ -41,7 +41,7 @@ export class Exporter extends BaseDownloader {
       throw new Error('导出任务正在运行中，无需重复启动');
     }
 
-    if (['html', 'txt', 'markdown', 'word', 'pdf'].includes(type)) {
+    if (['html', 'txt', 'markdown', 'markdown-merged', 'word', 'pdf'].includes(type)) {
       // 这些类型需要实时写入文件系统，提前初始化导出目录句柄
       try {
         await this.acquireExportDirectoryHandle();
@@ -79,6 +79,8 @@ export class Exporter extends BaseDownloader {
         await this.exportWordFiles();
       } else if (this.exportType === 'markdown') {
         await this.exportMarkdownFiles();
+      } else if (this.exportType === 'markdown-merged') {
+        await this.exportMarkdownFilesMergedByMonth();
       } else if (this.exportType === 'pdf') {
         // 1. 提取出所有html中需要下载的资源链接（复用HTML导出管线）
         await this.extractResources();
@@ -421,6 +423,79 @@ export class Exporter extends BaseDownloader {
       const blob = new Blob([markdown], { type: 'text/markdown' });
       await this.writeFile(filename + '.md', blob);
     });
+    await sleep(100);
+  }
+
+  // 导出 markdown 文件（按月合并）
+  private async exportMarkdownFilesMergedByMonth() {
+    const total = this.urls.length;
+    this.emit('export:total', total);
+
+    const turndownService = new TurndownService();
+
+    // 按月分组：key = "YYYY-MM", value = { article, markdownContent }[]
+    const monthGroups = new Map<string, { title: string; author: string; createTime: number; url: string; markdown: string }[]>();
+    let accountName = '';
+
+    let processedCount = 0;
+    for (const url of this.urls) {
+      const article = await getArticleByLink(url);
+      if (!article) continue;
+
+      if (!accountName) {
+        const account = this.allAccountInfo.find(a => a.fakeid === article.fakeid);
+        if (account?.nickname) accountName = account.nickname;
+      }
+
+      const content = await this.getRenderedHTML(url);
+      if (!content) {
+        processedCount++;
+        this.emit('export:progress', processedCount);
+        continue;
+      }
+      const markdown = turndownService.turndown(content);
+
+      const monthKey = dayjs.unix(article.create_time).format('YYYY-MM');
+      if (!monthGroups.has(monthKey)) {
+        monthGroups.set(monthKey, []);
+      }
+      monthGroups.get(monthKey)!.push({
+        title: article.title,
+        author: article.author_name,
+        createTime: article.create_time,
+        url,
+        markdown,
+      });
+
+      processedCount++;
+      this.emit('export:progress', processedCount);
+    }
+
+    // 按月份倒序排列
+    const sortedMonths = [...monthGroups.keys()].sort((a, b) => b.localeCompare(a));
+
+    const displayName = accountName || '公众号';
+    for (const monthKey of sortedMonths) {
+      const articles = monthGroups.get(monthKey)!;
+      // 月内按 createTime 倒序
+      articles.sort((a, b) => b.createTime - a.createTime);
+
+      const [year, month] = monthKey.split('-');
+      let merged = `# ${displayName} — ${year}年${month}月文章合集\n\n`;
+
+      for (const item of articles) {
+        const dateStr = dayjs.unix(item.createTime).format('YYYY-MM-DD HH:mm');
+        merged += `---\n\n`;
+        merged += `## ${item.title}\n\n`;
+        merged += `> 作者: ${item.author || displayName} | 发布时间: ${dateStr} | 原文链接: ${item.url}\n\n`;
+        merged += `${item.markdown}\n\n`;
+      }
+
+      const filename = filterInvalidFilenameChars(`${displayName}_${monthKey}`);
+      const blob = new Blob([merged], { type: 'text/markdown' });
+      await this.writeFile(filename + '.md', blob);
+    }
+
     await sleep(100);
   }
 
