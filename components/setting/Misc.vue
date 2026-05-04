@@ -125,6 +125,11 @@
           清理 HTML 缓存
         </UButton>
       </div>
+      <div class="p-3 bg-amber-50 rounded-b-md">
+        <p class="text-xs text-amber-700">
+          💡 清理后存储占用数字可能不会立即减少——浏览器需要在后台压缩数据库文件。完全关闭并重新打开浏览器后，占用空间会恢复正常。
+        </p>
+      </div>
     </div>
     <div class="border border-slate-200 p-3 rounded-md mt-5">
       <p class="flex justify-between items-center mb-3">
