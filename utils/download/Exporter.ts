@@ -233,6 +233,13 @@ export class Exporter extends BaseDownloader {
   private async downloadResourceTask(url: string, fakeid: string): Promise<void> {
     this.pending.add(url);
 
+    // 仅保存图片 URL 模式：跳过图片下载，不存 Blob
+    if (preferences.value.downloadConfig.saveImageUrlOnly) {
+      this.pending.delete(url);
+      this.completed.add(url);
+      return;
+    }
+
     // 检查缓存是否可用，避免重复下载相同资源
     const cached = await getResourceCache(url);
     if (cached) {

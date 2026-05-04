@@ -48,4 +48,7 @@ interface DownloadConfig {
 
   // 抓取阅读量时是否覆盖文章内容
   metadataOverrideContent: boolean;
+
+  // 仅保存图片 URL，不下载图片 Blob（节省存储空间，下载更快）
+  saveImageUrlOnly: boolean;
 }

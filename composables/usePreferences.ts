@@ -17,6 +17,7 @@ const defaultOptions: Partial<Preferences> = {
   downloadConfig: {
     forceDownloadContent: false,
     metadataOverrideContent: false,
+    saveImageUrlOnly: true,
   },
   accountSyncSeconds: 3,
   syncDateRange: 'all',

@@ -52,6 +52,25 @@
             <UIcon color="gray" name="i-heroicons:question-mark-circle-16-solid" class="size-5" />
           </UPopover>
         </div>
+
+        <div class="flex gap-1">
+          <UCheckbox
+            v-model="preferences.downloadConfig.saveImageUrlOnly"
+            name="saveImageUrlOnly"
+            label="仅保存图片 URL（不下载图片）"
+          />
+          <UPopover mode="hover" :popper="{ placement: 'top' }">
+            <template #panel>
+              <p class="max-w-[300px] p-3 text-sm text-gray-500">
+                勾选后，下载文章内容时只保存图片链接，不下载图片原始数据。<br />
+                可大幅减少本地数据库占用空间，下载速度也更快。<br />
+                适合 Markdown / PDF / JSON 等格式的导出场景。<br />
+                若需要完整离线 HTML（图片内嵌），请取消勾选。
+              </p>
+            </template>
+            <UIcon color="gray" name="i-heroicons:question-mark-circle-16-solid" class="size-5" />
+          </UPopover>
+        </div>
       </div>
       <div class="flex-1">
         <div>
